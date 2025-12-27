@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 中間地点駅検索アプリ
 
-## Getting Started
+複数人の最寄り駅を入力して、地理的な中心地点にある駅を見つけるWebアプリです。
 
-First, run the development server:
+## 機能
+
+- 参加者（2〜5人）の最寄り駅を入力
+- 駅名のオートコンプリート機能
+- 地理的な中心地点を計算
+- 中心地点から近い順に駅一覧を表示
+
+## セットアップ
+
+### 1. 環境変数の設定
+
+`.env.local` ファイルをプロジェクトルートに作成し、以下を設定：
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+GOOGLE_MAPS_API_KEY=your_api_key_here
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_api_key_here
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**重要**: 地図表示にはクライアント側でもAPIキーが必要なため、`NEXT_PUBLIC_` プレフィックス付きの環境変数も設定してください。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Google Maps Platform APIキーの取得:**
+1. [Google Cloud Console](https://console.cloud.google.com/)にアクセス
+2. プロジェクトを作成または選択
+3. 「APIとサービス」→「ライブラリ」から以下を有効化:
+   - Geocoding API
+   - Places API
+   - Maps JavaScript API
+4. 「認証情報」→「認証情報を作成」→「APIキー」
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Vercelへのデプロイ時:**
+- Vercelダッシュボードで以下の環境変数を設定:
+  - `GOOGLE_MAPS_API_KEY`
+  - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`（同じ値）
 
-## Learn More
+### 2. 開発サーバーの起動
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+http://localhost:3000 で確認できます。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 使い方
 
-## Deploy on Vercel
+1. 参加者の最寄り駅を入力（オートコンプリートで候補が表示されます）
+2. 「中心地点の駅を検索」ボタンをクリック
+3. 中心地点から近い順に駅一覧が表示されます
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 注意事項
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **日本では Google Directions API の transit モード（電車）が使用できません**
+- このアプリは**地理的な距離のみ**で中心地点を計算します
+- 実際の移動時間や乗換案内は考慮していません
+
+## 技術スタック
+
+- Next.js 16
+- TypeScript
+- Tailwind CSS
+- Google Maps Platform API
+  - Places API (Autocomplete, Nearby Search)
+  - Geocoding API
