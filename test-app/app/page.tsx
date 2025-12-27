@@ -13,9 +13,12 @@ export default function Home() {
   ]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<NearbyStation[]>([]);
+  const [originStations, setOriginStations] = useState<string[]>([]);
   const [centerPoint, setCenterPoint] = useState<{ latitude: number; longitude: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [selectedStation, setSelectedStation] = useState<NearbyStation | null>(null);
+  const [showTransferLinks, setShowTransferLinks] = useState(false);
 
   const addParticipant = () => {
     if (participants.length >= 5) return;
@@ -91,11 +94,22 @@ export default function Home() {
       const searchData = await searchResponse.json();
       setResults(searchData.stations || []);
       setCenterPoint(searchData.centerPoint || null);
+      // 出発駅のリストを保存（NAVITIMEリンク用）
+      setOriginStations(validParticipants.map(p => p.stationName));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'エラーが発生しました');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStationClick = (station: NearbyStation) => {
+    setSelectedStation(station);
+    setShowTransferLinks(true);
+  };
+
+  const generateNavitimeUrl = (origin: string, destination: string) => {
+    return `https://www.navitime.co.jp/transfer/searchlist?orvStationName=${encodeURIComponent(origin)}&dnvStationName=${encodeURIComponent(destination)}&lang=ja`;
   };
 
   return (
@@ -202,6 +216,12 @@ export default function Home() {
                           {station.address}
                         </p>
                       )}
+                      <button
+                        onClick={() => handleStationClick(station)}
+                        className="mt-2 ml-7 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        🚃 ここへの乗換案内を見る
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -217,6 +237,51 @@ export default function Home() {
             centerPoint={centerPoint}
             stations={results}
           />
+        )}
+
+        {/* 乗換案内リンクモーダル */}
+        {showTransferLinks && selectedStation && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {selectedStation.name} への乗換案内
+                </h2>
+                <button
+                  onClick={() => setShowTransferLinks(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                各参加者の最寄り駅から {selectedStation.name} への乗換案内（NAVITIME）を開きます
+              </p>
+              <div className="space-y-3">
+                {originStations.map((origin, index) => (
+                  <a
+                    key={index}
+                    href={generateNavitimeUrl(origin, selectedStation.name)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-sm text-gray-500">参加者 {index + 1}</span>
+                        <p className="font-semibold text-gray-900">
+                          {origin} → {selectedStation.name}
+                        </p>
+                      </div>
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
