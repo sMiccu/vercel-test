@@ -19,6 +19,13 @@ export default function Home() {
   const [showMap, setShowMap] = useState(false);
   const [selectedStation, setSelectedStation] = useState<NearbyStation | null>(null);
   const [showTransferLinks, setShowTransferLinks] = useState(false);
+  const [showRestaurants, setShowRestaurants] = useState(false);
+  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [loadingRestaurants, setLoadingRestaurants] = useState(false);
+  const [restaurantType, setRestaurantType] = useState<string>('restaurant');
+  const [minRating, setMinRating] = useState<number>(3.5);
+  const [minReviews, setMinReviews] = useState<number>(0);
+  const [maxPriceLevel, setMaxPriceLevel] = useState<number>(4);
 
   const addParticipant = () => {
     if (participants.length >= 5) return;
@@ -112,6 +119,44 @@ export default function Home() {
     return `https://www.navitime.co.jp/transfer/searchlist?orvStationName=${encodeURIComponent(origin)}&dnvStationName=${encodeURIComponent(destination)}&lang=ja`;
   };
 
+  const handleShowRestaurants = async (station: NearbyStation) => {
+    setSelectedStation(station);
+    setShowRestaurants(true);
+    setLoadingRestaurants(true);
+
+    try {
+      const response = await fetch('/api/nearby-restaurants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          latitude: station.latitude,
+          longitude: station.longitude,
+          type: restaurantType,
+          minRating: minRating,
+          minReviews: minReviews,
+          maxPriceLevel: maxPriceLevel,
+        }),
+      });
+
+      const data = await response.json();
+      setRestaurants(data.restaurants || []);
+    } catch (err) {
+      console.error('Failed to fetch restaurants:', err);
+      setRestaurants([]);
+    } finally {
+      setLoadingRestaurants(false);
+    }
+  };
+
+  const getPriceLevelText = (level?: number) => {
+    if (!level) return '不明';
+    return '¥'.repeat(level);
+  };
+
+  const getGoogleMapsUrl = (placeId: string) => {
+    return `https://www.google.com/maps/place/?q=place_id:${placeId}`;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -158,6 +203,82 @@ export default function Home() {
               + 参加者を追加
             </button>
           )}
+
+          {/* 飲食店検索条件 */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h3 className="text-lg font-semibold mb-3 text-gray-800">
+              飲食店の検索条件
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  カテゴリー
+                </label>
+                <select
+                  value={restaurantType}
+                  onChange={(e) => setRestaurantType(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                >
+                  <option value="restaurant">全般（レストラン）</option>
+                  <option value="izakaya">🍶 居酒屋</option>
+                  <option value="italian">🍝 イタリアン</option>
+                  <option value="cafe">☕ カフェ</option>
+                  <option value="japanese">🍱 和食</option>
+                  <option value="chinese">🥟 中華</option>
+                  <option value="korean">🍖 韓国料理</option>
+                  <option value="french">🍷 フレンチ</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  最高価格帯
+                </label>
+                <select
+                  value={maxPriceLevel}
+                  onChange={(e) => setMaxPriceLevel(Number(e.target.value))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                >
+                  <option value="1">〜1000円</option>
+                  <option value="2">〜3000円</option>
+                  <option value="3">〜5000円</option>
+                  <option value="4">5000円〜（上限なし）</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  最低評価（★）
+                </label>
+                <select
+                  value={minRating}
+                  onChange={(e) => setMinRating(Number(e.target.value))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                >
+                  <option value="0">指定なし</option>
+                  <option value="3.0">★3.0以上</option>
+                  <option value="3.5">★3.5以上</option>
+                  <option value="4.0">★4.0以上</option>
+                  <option value="4.5">★4.5以上</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  最低レビュー数
+                </label>
+                <select
+                  value={minReviews}
+                  onChange={(e) => setMinReviews(Number(e.target.value))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                >
+                  <option value="0">指定なし</option>
+                  <option value="5">5件以上</option>
+                  <option value="10">10件以上</option>
+                  <option value="20">20件以上</option>
+                  <option value="50">50件以上</option>
+                  <option value="100">100件以上</option>
+                </select>
+              </div>
+            </div>
+          </div>
 
           <button
             onClick={handleSearch}
@@ -216,12 +337,20 @@ export default function Home() {
                           {station.address}
                         </p>
                       )}
-                      <button
-                        onClick={() => handleStationClick(station)}
-                        className="mt-2 ml-7 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        🚃 ここへの乗換案内を見る
-                      </button>
+                      <div className="mt-2 ml-7 flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => handleStationClick(station)}
+                          className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                          🚃 乗換案内
+                        </button>
+                        <button
+                          onClick={() => handleShowRestaurants(station)}
+                          className="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
+                        >
+                          🍽️ 周辺の飲食店
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -279,6 +408,173 @@ export default function Home() {
                     </div>
                   </a>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 周辺飲食店モーダル */}
+        {showRestaurants && selectedStation && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full my-8">
+              <div className="sticky top-0 bg-white border-b p-4 rounded-t-lg">
+                <div className="flex justify-between items-center mb-3">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {selectedStation.name} 周辺の飲食店
+                  </h2>
+                  <button
+                    onClick={() => setShowRestaurants(false)}
+                    className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                {/* モーダル内で条件変更 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      カテゴリー
+                    </label>
+                    <select
+                      value={restaurantType}
+                      onChange={(e) => {
+                        setRestaurantType(e.target.value);
+                        handleShowRestaurants(selectedStation);
+                      }}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
+                    >
+                      <option value="restaurant">全般</option>
+                      <option value="izakaya">🍶 居酒屋</option>
+                      <option value="italian">🍝 イタリアン</option>
+                      <option value="cafe">☕ カフェ</option>
+                      <option value="japanese">🍱 和食</option>
+                      <option value="chinese">🥟 中華</option>
+                      <option value="korean">🍖 韓国料理</option>
+                      <option value="french">🍷 フレンチ</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      最低評価
+                    </label>
+                    <select
+                      value={minRating}
+                      onChange={(e) => {
+                        setMinRating(Number(e.target.value));
+                        handleShowRestaurants(selectedStation);
+                      }}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
+                    >
+                      <option value="0">指定なし</option>
+                      <option value="3.0">★3.0以上</option>
+                      <option value="3.5">★3.5以上</option>
+                      <option value="4.0">★4.0以上</option>
+                      <option value="4.5">★4.5以上</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      最低レビュー
+                    </label>
+                    <select
+                      value={minReviews}
+                      onChange={(e) => {
+                        setMinReviews(Number(e.target.value));
+                        handleShowRestaurants(selectedStation);
+                      }}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
+                    >
+                      <option value="0">指定なし</option>
+                      <option value="5">5件以上</option>
+                      <option value="10">10件以上</option>
+                      <option value="20">20件以上</option>
+                      <option value="50">50件以上</option>
+                      <option value="100">100件以上</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      最高価格帯
+                    </label>
+                    <select
+                      value={maxPriceLevel}
+                      onChange={(e) => {
+                        setMaxPriceLevel(Number(e.target.value));
+                        handleShowRestaurants(selectedStation);
+                      }}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
+                    >
+                      <option value="1">〜1000円</option>
+                      <option value="2">〜3000円</option>
+                      <option value="3">〜5000円</option>
+                      <option value="4">5000円〜</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 max-h-[70vh] overflow-y-auto">
+                {loadingRestaurants ? (
+                  <div className="text-center py-8 text-gray-500">
+                    検索中...
+                  </div>
+                ) : restaurants.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    飲食店が見つかりませんでした
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {restaurants.map((restaurant) => (
+                      <div
+                        key={restaurant.placeId}
+                        className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+                      >
+                        {restaurant.photoUrl && (
+                          <img
+                            src={restaurant.photoUrl}
+                            alt={restaurant.name}
+                            className="w-full h-40 object-cover"
+                          />
+                        )}
+                        <div className="p-4">
+                          <h3 className="font-semibold text-gray-900 mb-2">
+                            {restaurant.name}
+                          </h3>
+                          <div className="flex items-center gap-2 mb-2 text-sm">
+                            {restaurant.rating && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-yellow-500">★</span>
+                                <span className="font-medium">{restaurant.rating}</span>
+                                {restaurant.userRatingsTotal && (
+                                  <span className="text-gray-500">
+                                    ({restaurant.userRatingsTotal})
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {restaurant.priceLevel && (
+                              <span className="text-gray-600">
+                                {getPriceLevelText(restaurant.priceLevel)}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 mb-3">
+                            {restaurant.vicinity}
+                          </p>
+                          <a
+                            href={getGoogleMapsUrl(restaurant.placeId)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            Google Mapsで見る
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
